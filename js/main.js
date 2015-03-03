@@ -15,6 +15,7 @@ window.onload = function() {
                 'res/panda_sheet.png',
                 'res/enemy_sheet.png',
                 'res/map_tiles.gif',
+                'res/Realistic_Punch.wav',
                 'res/FEMME - Shiki No Uta (Samurai Champloo Bump).mp3');
 
    // Game settings/configuration
@@ -65,13 +66,13 @@ window.onload = function() {
            this.panda = panda;               // Declare & set SceneGame's panda
 
            // Create the health label
-           hpLabel = new Label('HP: 100');
+           hpLabel = new Label('HP: ');
            hpLabel.x = 0;
            hpLabel.y = 0;
            hpLabel.color = 'black';
            hpLabel.font = 'bold 16px sans-serif';
            hpLabel.textAlign = 'center';
-           hpLabel.hpLabel = hpLabel;
+           this.hpLabel = hpLabel;
 
            // Obstruction group Node
            obstructGroup = new Group();
@@ -114,7 +115,7 @@ window.onload = function() {
               [  1,  1,  0,  1,  1,  1,  1,  0,  1,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  1,  0,  0,  0,  0,  0,  0,  1],
               [  1,  0,  0,  0,  0,  0,  1,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  1,  1,  0,  0,  0,  0,  0,  1],
               [  1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  1,  1,  1,  0,  0,  0,  1],
-              [  1,  0,  0,  1,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  1,  1,  1,  0,  1,  0,  1],
+              [  1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  1,  1,  1,  0,  1,  0,  1],
               [  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  1,  1,  0,  0,  0,  1],
               [  1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  1,  0,  1],
               [  1,  0,  1,  1,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  1,  1],
@@ -162,6 +163,7 @@ window.onload = function() {
         },
 
         // A_BUTTON_DOWN handler (not actually 'A', but that's its name)
+        // This is an example of using Game to get the current scene
         aHandler: function(evt) {
           var scene = Game.instance.currentScene;
           var panda = scene.panda;
@@ -187,7 +189,22 @@ window.onload = function() {
            var bgMusic = this.bgm;
            if (bgMusic.currentTime >= bgMusic.duration){
               bgMusic.play();
-           }           
+           }
+
+           //-- Check win/lose conditions
+           // Win = Panda reaches the chest at cell(3, 24)
+           var chestX = 3;
+           var chestY = 24;
+           if (Math.floor(this.panda.x/20) == chestX &&
+               Math.floor(this.panda.y/20) == chestY) {
+              this.bgm.stop();
+              Game.instance.replaceScene(new SceneWin());
+           }
+           // Lose = Panda's hp reaches 0
+           if (this.panda.hp <= 0) {
+              this.bgm.stop();
+              Game.instance.replaceScene(new SceneGameOver());
+           }
 
            //-- Update enemy generation
            // this.generateEnemyTimer += evt.elapsed * 0.001;
@@ -198,15 +215,19 @@ window.onload = function() {
               this.addChild(enemy);
            }
 
-           //-- Update enemy collision
+           //-- Update collision with enemy
            for (var i = this.obstructGroup.childNodes.length - 1; i >= 0; i--) {
               var enemy, og = this.obstructGroup;
               enemy = og.childNodes[i];
-              if (enemy.within(this.panda, 16)){
-                 og.removeChild(enemy); 
-                 break;
+              if (this.panda.vulnerable && enemy.within(this.panda, 16)) {
+                 Game.instance.assets['res/Realistic_Punch.wav'].play();
+                 this.panda.hp -= 1;
+                 this.toggleVulnerability(this.panda); // Make panda invincible for 60 frames
+                 this.tl.delay(60).then( function() {  // Panda is vulnerable after 60 frames
+                    this.toggleVulnerability(this.panda); 
+                 });
               }
-          }
+           }
 
           // -- Easystar.js Pathfinding
           // var easystar = Game.instance.easystar;
@@ -215,6 +236,12 @@ window.onload = function() {
           // var enemyX = Math.floor(this.testEnemy.x/20);
           // var enemyY = Math.floor(this.testEnemy.y/20);
           // easystar.findPath(pandaX, pandaY, enemyX, enemyY, this.tracePath);
+
+           var healthBar = "";
+           for (i = 0; i < this.panda.hp; i++) {
+              healthBar += " | ";
+           }
+           this.hpLabel.text = "HP:" + healthBar;
         },
 
         tracePath: function(path) {
@@ -229,6 +256,10 @@ window.onload = function() {
                   obstructGroup.addChild(newEnemy);
                }
             }
+        },
+
+        toggleVulnerability: function(character) {
+           character.vulnerable = !character.vulnerable;  
         }
     });
 
@@ -240,6 +271,11 @@ window.onload = function() {
        initialize: function() {
            Sprite.apply(this,[32, 32]);      // Each sprite is 32x32
            this.image = Game.instance.assets['res/panda_sheet.png'];
+
+           //-- Instance variables
+           this.hp = 5;
+           this.vulnerable = true;
+
            //-- Animate
            this.animationDuration = 0;       // Animation timer
 
@@ -300,7 +336,11 @@ window.onload = function() {
 
        initialize: function(x, y) {
            Sprite.apply(this,[32, 32]);
-           this.image  = Game.instance.assets['res/enemy_sheet.png'];      
+           this.image  = Game.instance.assets['res/enemy_sheet.png'];    
+
+           this.hp = 100;
+           this.vulnerable = true;
+
            this.setPosition(x, y);
            this.addEventListener(Event.ENTER_FRAME, this.update);
        },
@@ -321,7 +361,7 @@ window.onload = function() {
    }); // END Enemy
 
    /**
-   * Scene for ending the game
+   * Scene for losing the game
    */
    var SceneGameOver = Class.create(Scene, {
        initialize: function() {
@@ -345,6 +385,33 @@ window.onload = function() {
        restart: function() {
            Game.instance.replaceScene(new SceneGame());
        }
-   });   
+   });
+
+      /**
+   * Scene for winning the game
+   */
+   var SceneWin = Class.create(Scene, {
+       initialize: function() {
+           var winLabel, scoreLabel;
+           Scene.apply(this);
+
+           this.backgroundColor = 'white';
+
+           winLabel = new Label("YOU WIN :]<br><br>Click to Restart");
+           winLabel.x = Game.instance.width/2;
+           winLabel.y = Game.instance.height/2;
+           winLabel.color = 'black';
+           winLabel.font = '32px strong';
+           winLabel.textAlign = 'center';
+
+           this.addChild(winLabel);
+
+           this.addEventListener(Event.TOUCH_START, this.restart);           
+       },
+
+       restart: function() {
+           Game.instance.replaceScene(new SceneGame());
+       }
+   });      
 
 }; // END window.onload
