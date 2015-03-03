@@ -6,7 +6,9 @@
 enchant();
  
 window.onload = function() {
-   var game = new Game(800, 600); // NOTE: BG image grid is 40x30 cells (W X H)
+   var game = new Game(800, 600); 
+   // NOTE: BG image grid is 40 cells by 30 cells (W X H)
+   //       Each cell is 20x20 pixels
 
    // Preload resources
    game.preload('res/map.png',
@@ -18,10 +20,12 @@ window.onload = function() {
    // Game settings/configuration
    game.fps = 30;
    game.scale = 1;
+   // JavaScript keycode bindings
    game.keybind(87, 'up');    // W
    game.keybind(65, 'left');  // A
    game.keybind(83, 'down');  // S
    game.keybind(68, 'right'); // D
+    game.keybind(17, 'a');     // CTRL
    game.keybind(16, 'b');     // SHIFT IN
 
    game.onload = function() {
@@ -87,7 +91,7 @@ window.onload = function() {
               [  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
               [  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
               [  0,  1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
-              [  1,  1,  1,  1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
+              [  0,  1,  1,  1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
               [  0,  0,  0,  1,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
               [  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  0,  1,  1,  0,  0,  0,  0,  0,  1,  1,  1,  0,  0,  1,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
               [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
@@ -115,15 +119,16 @@ window.onload = function() {
               [  1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  1,  0,  1],
               [  1,  0,  1,  1,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  1,  1],
               [  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  1],
-              [  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  1],  
+              [  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  1]  
            ];
            game.map = map;
 
-           // //-- Setting up EasyStar.js A* Pathfinding
-           // var easystar = new EasyStar.js();
-           // easystar.setGrid(grid);             // Set grid
-           // easystar.setAcceptableTiles([0]);   // Mark which cell type is "walkable"   
-
+           //-- Setting up EasyStar.js A* Pathfinding
+           var easystar = new EasyStar.js();
+           easystar.setIterationsPerCalculation(1000);  // Change if execution is too slow
+           easystar.setGrid(map.collisionData);             // Set grid
+           easystar.setAcceptableTiles([0]);   // Mark which cell type is "walkable"
+           game.easystar = easystar;
 
            //-- Add child nodes, from bottom up
 
@@ -138,16 +143,17 @@ window.onload = function() {
            // Touch listener
            this.addEventListener(Event.TOUCH_START, this.handleTouchControl);
            // Button listeners
+           this.addEventListener(Event.A_BUTTON_DOWN, this.aHandler);
            this.addEventListener(Event.B_BUTTON_DOWN, this.bHandler);
            // Update
            this.addEventListener(Event.ENTER_FRAME, this.update);
            this.generateEnemyTimer = 0;
 
            // DEBUG: single enemy for testing
-           var testEnemy = new Enemy(Math.floor(Math.random()*3));
-           testEnemy.x = 110;
-           testEnemy.y = 450;
+           // px(40, 20) = cell(2, 1); 0-indexed w/ inverted y & 20px cells
+           var testEnemy = new Enemy(1 * 20, 4 * 20); 
            obstructGroup.addChild(testEnemy);
+           this.testEnemy = testEnemy;
         },
 
         // Event.TOUCH_START handler
@@ -155,8 +161,22 @@ window.onload = function() {
            this.panda.setPosition(evt.x, evt.y);
         },
 
+        // A_BUTTON_DOWN handler (not actually 'A', but that's its name)
+        aHandler: function(evt) {
+          var scene = Game.instance.currentScene;
+          var panda = scene.panda;
+          var enemy = scene.testEnemy;
+          var pandaX = Math.floor(panda.x/20);
+          var pandaY = Math.floor(panda.y/20);
+          var enemyX = Math.floor(enemy.x/20);
+          var enemyY = Math.floor(enemy.y/20);
+          var easystar = Game.instance.easystar;
+          easystar.findPath(pandaX, pandaY, enemyX, enemyY, this.tracePath);
+          Game.instance.easystar.calculate();
+        },        
+
         // B_BUTTON_DOWN handler (not actually 'B', but that's its name)
-        bHandler: function() {
+        bHandler: function(evt) {
            this.bgm.stop();
            Game.instance.replaceScene(new SceneGameOver());
         },
@@ -186,8 +206,30 @@ window.onload = function() {
                  og.removeChild(enemy); 
                  break;
               }
-          }           
-        }        
+          }
+
+          // -- Easystar.js Pathfinding
+          // var easystar = Game.instance.easystar;
+          // var pandaX = Math.floor(this.panda.x/20);
+          // var pandaY = Math.floor(this.panda.y/20);
+          // var enemyX = Math.floor(this.testEnemy.x/20);
+          // var enemyY = Math.floor(this.testEnemy.y/20);
+          // easystar.findPath(pandaX, pandaY, enemyX, enemyY, this.tracePath);
+        },
+
+        tracePath: function(path) {
+            if (path == null) {
+               console.log("Path was not found.");
+            }
+            else {
+               // alert("Path was found. The first Point is " + path[0].x + " " + path[0].y);
+               for (var i = 0; i < path.length; i++) {
+                  var newEnemy = new Enemy(path[i].x * 20, path[i].y * 20); // *20 for pixel -> cell
+                  var obstructGroup = Game.instance.currentScene.obstructGroup;
+                  obstructGroup.addChild(newEnemy);
+               }
+            }
+        }
     });
 
     /**
@@ -256,10 +298,10 @@ window.onload = function() {
    // Enemy
    var Enemy = Class.create(Sprite, {
 
-       initialize: function(lane) {
+       initialize: function(x, y) {
            Sprite.apply(this,[32, 32]);
            this.image  = Game.instance.assets['res/enemy_sheet.png'];      
-           this.setPosition(110, 450);
+           this.setPosition(x, y);
            this.addEventListener(Event.ENTER_FRAME, this.update);
        },
 
