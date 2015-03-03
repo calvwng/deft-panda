@@ -16,6 +16,7 @@ window.onload = function() {
                 'res/enemy_sheet.png',
                 'res/map_tiles.gif',
                 'res/Realistic_Punch.wav',
+                'res/bear_growl.mp3',
                 'res/FEMME - Shiki No Uta (Samurai Champloo Bump).mp3');
 
    // Game settings/configuration
@@ -221,6 +222,7 @@ window.onload = function() {
               enemy = og.childNodes[i];
               if (this.panda.vulnerable && enemy.within(this.panda, 16)) {
                  Game.instance.assets['res/Realistic_Punch.wav'].play();
+                 Game.instance.assets['res/bear_growl.mp3'].play();
                  this.panda.hp -= 1;
                  this.toggleVulnerability(this.panda); // Make panda invincible for 60 frames
                  this.tl.delay(60).then( function() {  // Panda is vulnerable after 60 frames
