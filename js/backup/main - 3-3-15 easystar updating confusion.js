@@ -4,16 +4,9 @@
 */
 
 enchant();
-
+ 
 window.onload = function() {
-   //-- Globals
-   var pandaSpeed = 2.5;
-   var enemyCanMoveDiagonally = true;
-   var gameWidth = 800;
-   var gameHeight = 600;
-
-   //-- Game setup
-   var game = new Game(gameWidth, gameHeight); 
+   var game = new Game(800, 600); 
    // NOTE: BG image grid is 40 cells by 30 cells (W X H)
    //       Each cell is 20x20 pixels
 
@@ -60,15 +53,17 @@ window.onload = function() {
 
            // Play bgm (looping is performed in update)
            this.bgm = game.assets['res/FEMME - Shiki No Uta (Samurai Champloo Bump).mp3'];
-           this.bgm.play();
+           // this.bgm.play();
 
            // Create the background/map
            bg = new Sprite(800,600);
            bg.image = game.assets['res/map.png']; 
 
            // Create the panda
-           panda = new Panda(34 * 20, 2 * 20);       // Each sprite is 32x32
+           panda = new Panda();       // Each sprite is 32x32
            panda.image = game.assets['res/panda_sheet.png'];
+           panda.x = game.width/2;
+           panda.y = game.height/2;
            this.panda = panda;               // Declare & set SceneGame's panda
 
            // Create the health label
@@ -135,20 +130,15 @@ window.onload = function() {
            easystar.setIterationsPerCalculation(1000);  // Change if execution is too slow
            easystar.setGrid(map.collisionData);             // Set grid
            easystar.setAcceptableTiles([0]);   // Mark which cell type is "walkable"
-           enemyCanMoveDiagonally ? easystar.enableDiagonals() : 0;        // Allow diagonal movement 
            game.easystar = easystar;
 
-           //-- Add child nodes in layers from bottom up
-           // this.addChild(map);     // Apparently didn't need this since I set the game's map already
-           this.addChild(bg);
-           this.addChild(panda);
-           this.addChild(obstructGroup);               
-           this.addChild(hpLabel);
+           //-- Add child nodes, from bottom up
 
-           // Ex. px(40, 20) = cell(2, 1); 0-indexed w/ inverted y & 20px cells
-           var enemy = new Enemy(5 * 20, 23 * 20);  // 1, 4 is a decent starting point
-           obstructGroup.addChild(enemy);
-           this.enemy = enemy;           
+           this.addChild(bg);   
+           // this.addChild(map);            // Apparently didn't need this
+           this.addChild(obstructGroup);             
+           this.addChild(panda);
+           this.addChild(hpLabel);
 
            //-- Set up event listeners
 
@@ -159,8 +149,13 @@ window.onload = function() {
            this.addEventListener(Event.B_BUTTON_DOWN, this.bHandler);
            // Update
            this.addEventListener(Event.ENTER_FRAME, this.update);
+           this.generateEnemyTimer = 0;
 
-           // this.generateEnemyTimer = 0;  // Unused in this revision
+           // DEBUG: single enemy for testing
+           // px(40, 20) = cell(2, 1); 0-indexed w/ inverted y & 20px cells
+           var testEnemy = new Enemy(1 * 20, 4 * 20); 
+           obstructGroup.addChild(testEnemy);
+           this.testEnemy = testEnemy;
         },
 
         // Event.TOUCH_START handler
@@ -173,7 +168,7 @@ window.onload = function() {
         aHandler: function(evt) {
           var scene = Game.instance.currentScene;
           var panda = scene.panda;
-          var enemy = scene.enemy;
+          var enemy = scene.testEnemy;
           var pandaX = Math.floor(panda.x/20);
           var pandaY = Math.floor(panda.y/20);
           var enemyX = Math.floor(enemy.x/20);
@@ -199,8 +194,6 @@ window.onload = function() {
 
            //-- Check win/lose conditions
            // Win = Panda reaches the chest at cell(3, 24)
-           // NOTE: In future revisions, consider randomly placing chest
-           //       and randomly placing player on opposite side
            var chestX = 3;
            var chestY = 24;
            if (Math.floor(this.panda.x/20) == chestX &&
@@ -214,14 +207,14 @@ window.onload = function() {
               Game.instance.replaceScene(new SceneGameOver());
            }
 
-           //-- Update enemy generationm if desired (unused in this revision)
+           //-- Update enemy generation
            // this.generateEnemyTimer += evt.elapsed * 0.001;
-           // if (this.generateEnemyTimer >= 0.5) {
-           //    var enemy;
-           //    this.generateEnemyTimer -= 0.5;
-           //    enemy = new Enemy(Math.floor(Math.random()*3));
-           //    this.obstructGroup.addChild(enemy);
-           // }
+           if (this.generateEnemyTimer >= 0.5) {
+              var enemy;
+              this.generateEnemyTimer -= 0.5;
+              enemy = new Enemy(Math.floor(Math.random()*3));
+              this.addChild(enemy);
+           }
 
            //-- Update collision with enemy
            for (var i = this.obstructGroup.childNodes.length - 1; i >= 0; i--) {
@@ -242,6 +235,14 @@ window.onload = function() {
                  });
               }
            }
+
+          // -- Easystar.js Pathfinding
+          // var easystar = Game.instance.easystar;
+          // var pandaX = Math.floor(this.panda.x/20);
+          // var pandaY = Math.floor(this.panda.y/20);
+          // var enemyX = Math.floor(this.testEnemy.x/20);
+          // var enemyY = Math.floor(this.testEnemy.y/20);
+          // easystar.findPath(enemyX, enemyY, pandaX, pandaY, this.tracePath);
 
            var healthBar = "";
            for (i = 0; i < this.panda.hp; i++) {
@@ -274,7 +275,7 @@ window.onload = function() {
     */
     var Panda = Class.create(Sprite, {
 
-       initialize: function(x, y) {
+       initialize: function() {
            Sprite.apply(this,[32, 32]);      // Each sprite is 32x32
            this.image = Game.instance.assets['res/panda_sheet.png'];
 
@@ -282,7 +283,10 @@ window.onload = function() {
            this.hp = 5;
            this.vulnerable = true;
 
-           this.setPosition(x, y);
+           this.cellX = Math.floor(this.x/20);
+           this.cellY = Math.floor(this.y/20);
+           this.prevCellX = this.cellX;
+           this.prevCellY = this.cellY;
 
            //-- Animate
            this.animationDuration = 0;       // Animation timer
@@ -296,6 +300,10 @@ window.onload = function() {
           var input = game.input;
           var map = game.map;
 
+          // Save previous cell (in case of movement)
+          this.prevX = this.cellX;
+          this.prevY = this.cellY;          
+
           this.animationDuration += evt.elapsed * 0.001;    // ms to sec   
           if (this.animationDuration >= 0.25) {
              this.frame = (this.frame + 1) % 2;     // Switch b/t frame 0 and 1
@@ -308,16 +316,16 @@ window.onload = function() {
           this.dy = 0;
           
           if (input.left && !input.right) {
-             this.dx = -pandaSpeed;
+             this.dx = -4;
           } 
           else if (input.right && !input.left) {
-             this.dx = pandaSpeed;
+             this.dx = 4;
           } 
           if (input.up && !input.down) {
-             this.dy = -pandaSpeed;
+             this.dy = -4;
           } 
           else if (input.down && !input.up) {
-             this.dy = pandaSpeed;
+             this.dy = 4;
           }
           
           this.dx += this.x;
@@ -328,9 +336,13 @@ window.onload = function() {
                   this.moveTo(this.dx, this.dy);
               }
               else {
-                  // TODO: Add a slight knockback to make movement more fluid?
+                  // TODO: Add a little knockback to make movement more fluid
               }
           }
+
+          // Update current cell
+          this.cellX = Math.floor(this.x/20);
+          this.cellY = Math.floor(this.y/20);
         },
 
         setPosition: function (newX, newY) {
@@ -348,9 +360,21 @@ window.onload = function() {
 
            this.hp = 8;
            this.vulnerable = true;
-           
-           this.setPosition(x, y);
+
+           this.path;
+           this.pathIdx = 1;
+
+           this.cellX = Math.floor(this.x/20);
+           this.cellY = Math.floor(this.y/20);           
+           this.prevCellX = this.cellX;
+           this.prevCellY = this.cellY;
+
+           var easystar = Game.instance.easystar;
+           easystar.findPath(this.cellX, this.cellY, this.panda.cellX, this.panda.cellY,
+                 pathHandler);
     
+
+           this.setPosition(x, y);
            this.addEventListener(Event.ENTER_FRAME, this.update);
        },
 
@@ -362,52 +386,58 @@ window.onload = function() {
        update: function(evt) { 
            var game = Game.instance;
 
+           this.prevCellX = this.cellX;
+           this.prevCellY = this.cellY;
+
            if (this.hp == 0) {
               this.parentNode.removeChild(this);        
            }
 
-           var easystar = game.easystar;
-           var scene = game.currentScene;
+           var easystar = Game.instance.easystar;
+           var scene = Game.instance.currentScene;
+           var panda = scene.panda;
+           
+           // If start/end pts for calculation haven't changed, continue 1 cell along path
+           if (panda.cellX == panda.prevCellX && panda.cellY == panda.prevCellY) {
+              var idx = this.pathIdx;
+              var nextCellX = this.path[idx].x;
+              var nextCellY = this.path[idx].y;
+              this.moveTo(nextCellX * 20, nextCellY * 20);
+              this.prevCellX = prevCellX;
+              this.prevCellY = prevCellY;
+              this.pathIdx++;
+           }
+           else { // Else find new path, recalculate, set path, and reset pathIdx
+              this.pathIdx = 1;
+              Game.instance.easystar.calculate();
+           }
+ 
 
-           this.tl.setTimeBased();
+           if (this.path != null) {
+              if (this.path[1].x != this.x && this.path[1].y != this.y) {
 
-           this.tl.delay(250).then(function() {
-              easystar.findPath(Math.floor(this.x/20), Math.floor(this.y/20), 
-                    Math.floor(scene.panda.x/20), Math.floor(scene.panda.y/20),
-                    this.pathHandler);
-              this.calculatePath();
-           });
+                 // Save current cell as previous
+                 this.prevCellX = this.cellX;
+                 this.prevCellY = this.cellY;
+
+                 // Move to pixel coords of next cell in path
+                 this.tl.moveTo(this.path[1].x * 20, this.path[1].y * 20, 2);
+
+                 // Update current cell
+                 this.cellX = Math.floor(this.x/20);
+                 this.cellY = Math.floor(this.y/20);
+              }
+           }
          },
 
-         calculatePath: function() {
-            // console.log("Calculating path");
-            Game.instance.easystar.calculate();
-         },
-
-         // This is not within the scope of Enemy; this is within Easystar's scope
          pathHandler: function(path) {
-            if (path != null) {
-               var scene = Game.instance.currentScene;
-               var enemy = scene.enemy;
-
-               // console.log("Path length is " + path.length);
-               if (path.length <= 2) {
-                  enemy.x = scene.panda.x
-                  enemy.y = scene.panda.y;
-                  // console.log("Panda was reached at " + scene.panda.x + ", " + scene.panda.y);
-                  return;
-               }
-               else if (path.length > 1) {
-                  // enemy.tl.moveTo(path[1].x * 20, path[1].y * 20, 2);  // Why didn't this work, despite it working before?
-                  enemy.x = path[1].x * 20;
-                  enemy.y = path[1].y * 20;
-
-                  // console.log("Next pixel coord is " + path[1].x * 20 + ", " + path[1].y * 20);
-                  // console.log("and target destination is " + path[path.length - 1].x * 20 + ", " + path[path.length - 1].y * 20);
-               }
+            if (path == null) {
+               console.log("Path was not found.");
             }
             else {
-               // console.log("Path was not found.");
+               var scene = Game.instance.currentScene;
+               var enemy = scene.testEnemy;
+               enemy.path = path;
             }
          }            
    }); // END Enemy
