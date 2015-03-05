@@ -7,7 +7,9 @@ enchant();
 
 window.onload = function() {
    //-- Globals
+   var DEBUG_MODE = false;   
    var pandaSpeed = 2.5;
+   var enemySpeedMilliseconds = 225;
    var enemyCanMoveDiagonally = true;
    var gameWidth = 800;
    var gameHeight = 600;
@@ -21,9 +23,16 @@ window.onload = function() {
    game.preload('res/map.png',
                 'res/panda_sheet.png',
                 'res/enemy_sheet.png',
-                'res/map_tiles.gif',
+                'res/bamboo.png',
+                'res/deft_panda_tutorial_1.png',
+                'res/deft_panda_tutorial_2.png',
+                'res/deft_panda_tutorial_3.png',
                 'res/Realistic_Punch.wav',
                 'res/bear_growl.mp3',
+                'res/crunch.mp3',
+                'res/success.mp3',
+                'res/failure.mp3',
+                'res/harp_loop.mp3',
                 'res/FEMME - Shiki No Uta (Samurai Champloo Bump).mp3');
 
    // Game settings/configuration
@@ -40,20 +49,77 @@ window.onload = function() {
    game.onload = function() {
       // Once Game finishes loading
       var scene, bg;
-      var scene = new SceneGame();       
-      game.pushScene(scene);
+      var tutorial = new SceneTutorial();
+      game.pushScene(tutorial);
    }
    // Start game
    game.start();
- 
+
+   /**
+   * Scene for tutorial
+   */
+   var SceneTutorial = Class.create(Scene, {
+       initialize: function() {
+          Scene.apply(this);
+          this.curTutorial = 1;
+
+          this.tutorial = new Sprite(800, 600);
+          this.tutorial.image = Game.instance.assets['res/deft_panda_tutorial_1.png'];
+
+          var promptLabel = new Label("CLICK TO CONTINUE");
+          promptLabel.x = 250;
+          promptLabel.y = 500;
+          promptLabel.color = 'white';
+          promptLabel.font = '24px Tahoma, strong';
+          promptLabel.textAlign = 'center';
+          this.promptLabel = promptLabel;
+
+          this.addChild(this.tutorial);
+          this.addChild(promptLabel);
+
+          Game.instance.assets['res/harp_loop.mp3'].play();
+
+          this.addEventListener(Event.ENTER_FRAME, this.update);
+          this.addEventListener(Event.TOUCH_START, this.nextTutorial);
+       },
+
+       update: function(evt) {
+          //-- Loop BGM
+          var bgMusic = Game.instance.assets['res/harp_loop.mp3'];
+          if (bgMusic.currentTime >= bgMusic.duration){
+             bgMusic.play();
+          }
+
+          this.promptLabel.tl.fadeOut(30);
+          this.promptLabel.tl.fadeIn(30);          
+       },
+
+       nextTutorial: function(evt) {
+          if (this.curTutorial <= 2) {
+             this.curTutorial++;
+             this.tutorial.image = Game.instance.assets['res/deft_panda_tutorial_' 
+                   + this.curTutorial + ".png"];
+          }
+          else {
+             Game.instance.assets['res/harp_loop.mp3'].stop();
+             var mainScene = new SceneGame(1); // Start with 1 bamboo to collect
+             Game.instance.pushScene(mainScene);
+          }
+       }
+   });
 
    /**
    * The main Scene for the game
    */   
    var SceneGame = Class.create(Scene, {     //Extend the Scene class
-       initialize: function() {
+       initialize: function(bambooGoal) {
            // Instance variables
-           var game, bg, panda, hpLabel, obstructGroup, bgm;
+           var game, bg, panda, hpLabel, bambooLabel, enemyGroup, bambooGroup, bgm;
+           var totalBamboo = bambooGoal;
+           this.totalBamboo = totalBamboo;
+           var bambooNeeded = totalBamboo;
+           this.bambooNeeded = bambooNeeded;
+           this.paused = false;
 
            Scene.apply(this);                // Call superclass constructor
            game = Game.instance;             // Get game singleton instance
@@ -63,7 +129,7 @@ window.onload = function() {
            this.bgm.play();
 
            // Create the background/map
-           bg = new Sprite(800,600);
+           bg = new Sprite(gameWidth, gameHeight);
            bg.image = game.assets['res/map.png']; 
 
            // Create the panda
@@ -80,9 +146,43 @@ window.onload = function() {
            hpLabel.textAlign = 'center';
            this.hpLabel = hpLabel;
 
-           // Obstruction group Node
-           obstructGroup = new Group();
-           this.obstructGroup = obstructGroup;
+           // Create the bamboo label
+           bambooLabel = new Label('Bamboo Needed: ' + bambooNeeded);
+           bambooLabel.x = gameWidth/2;
+           bambooLabel.y = 0;
+           bambooLabel.color = 'black';
+           bambooLabel.font = 'bold 16px sans-serif';
+           bambooLabel.textAlign = 'center';
+           this.bambooLabel = bambooLabel;
+
+           // Create the pause label
+           pauseLabel = new Label('PAUSED');
+           pauseLabel.x = 250;
+           pauseLabel.y = 250;
+           pauseLabel.color = 'white';
+           pauseLabel.font = 'bold 32px sans-serif';
+           pauseLabel.textAlign = 'center';
+           this.pauseLabel = pauseLabel;                 
+
+           // Enemy group Node
+           enemyGroup = new Group();
+           this.enemyGroup = enemyGroup;
+
+           // Ex. px(40, 20) = cell(2, 1); 0-indexed w/ inverted y & 20px cells
+           var enemy = new Enemy(5 * 20, 23 * 20);  // 1, 4 is a decent starting point
+           enemyGroup.addChild(enemy);
+           this.enemy = enemy;
+
+           // Add bamboo for panda to collect
+           bambooGroup = new Group();
+           for (var i = 0; i < totalBamboo; i++) {
+              var padding = 20; // Make sure bamboo is added inside map
+              var bambooX = Math.floor(Math.random() * (gameWidth - padding));
+              var bambooY = Math.floor(Math.random() * (gameHeight - padding));
+              var bamboo = new Bamboo(bambooX, bambooY);
+              bambooGroup.addChild(bamboo);
+           }
+           this.bambooGroup = bambooGroup;
 
            //-- Create an invisible map/grid for collision mapping
            var map = new Map(20, 20);
@@ -142,13 +242,10 @@ window.onload = function() {
            // this.addChild(map);     // Apparently didn't need this since I set the game's map already
            this.addChild(bg);
            this.addChild(panda);
-           this.addChild(obstructGroup);               
+           this.addChild(enemyGroup);
+           this.addChild(bambooGroup);               
            this.addChild(hpLabel);
-
-           // Ex. px(40, 20) = cell(2, 1); 0-indexed w/ inverted y & 20px cells
-           var enemy = new Enemy(5 * 20, 23 * 20);  // 1, 4 is a decent starting point
-           obstructGroup.addChild(enemy);
-           this.enemy = enemy;           
+           this.addChild(bambooLabel);
 
            //-- Set up event listeners
 
@@ -165,28 +262,94 @@ window.onload = function() {
 
         // Event.TOUCH_START handler
         handleTouchControl: function(evt) {
-           this.panda.setPosition(evt.x, evt.y);
+           // If debugging, clicking will move the panda to the click location
+           if (DEBUG_MODE) {
+              this.panda.setPosition(evt.x, evt.y);
+           }
+
+           /* Incomplete dash logic is removed for this revision in favor of using
+              the mouse click to pick up bamboo */
+
+           // // Otherwise, clicking will dash the panda TOWARDS the click location
+           // // if the player is currently being injured by the enemy
+           // var pandaX = this.panda.x;
+           // var pandaY = this.panda.y;
+           // var dashDistance = 30;
+
+           // // If player was just hurt and is relatively close to enemy, allow dash
+           // // otherwise return without dashing
+           // if (!this.panda.vulnerable && this.enemy.within(this.panda, 60)) {
+           //     if (evt.x < pandaX) {
+           //        pandaX -= dashDistance;
+           //     }
+           //     else {
+           //        pandaX += dashDistance;
+           //     }
+
+           //     if (evt.y < pandaY) {
+           //        pandaY -= dashDistance;
+           //     }
+           //     else {
+           //        pandaY += dashDistance;
+           //     }
+
+           //     var game = Game.instance;
+           //     var withinXBounds = pandaX > 20 && pandaX < gameWidth - 20;
+           //     var withinYBounds = pandaY > 20 && pandaY < gameHeight - 20;
+           //     if (withinXBounds && withinYBounds) {
+           //        this.panda.tl.moveTo(pandaX, pandaY, 3); // Take 3 frames to move
+           //     }
+           // }           
+
+           /* Logic for clicking to eat bamboo when close enough */
+           var minDistToBamboo = 25;
+           for (var i = this.bambooGroup.childNodes.length - 1; i >= 0; i--) {
+              var bamboo, bGroup = this.bambooGroup;
+              bamboo = bGroup.childNodes[i];
+              if (bamboo.within(this.panda, minDistToBamboo)) {
+                 bGroup.removeChild(bamboo);
+                 this.bambooNeeded--;
+                 Game.instance.assets['res/crunch.mp3'].play();
+              }
+           }
         },
 
         // A_BUTTON_DOWN handler (not actually 'A', but that's its name)
         // This is an example of using Game to get the current scene
+        // Currently bound to 'CTRL' key, to show enemy path
         aHandler: function(evt) {
-          var scene = Game.instance.currentScene;
-          var panda = scene.panda;
-          var enemy = scene.enemy;
-          var pandaX = Math.floor(panda.x/20);
-          var pandaY = Math.floor(panda.y/20);
-          var enemyX = Math.floor(enemy.x/20);
-          var enemyY = Math.floor(enemy.y/20);
-          var easystar = Game.instance.easystar;
-          easystar.findPath(enemyX, enemyY, pandaX, pandaY, this.tracePath);
-          Game.instance.easystar.calculate();
+          // If debugging, pressing this button will display the best path
+          // from the enemy to the player
+          if (DEBUG_MODE) {
+              var scene = Game.instance.currentScene;
+              var panda = scene.panda;
+              var enemy = scene.enemy;
+              var pandaX = Math.floor(panda.x/20);
+              var pandaY = Math.floor(panda.y/20);
+              var enemyX = Math.floor(enemy.x/20);
+              var enemyY = Math.floor(enemy.y/20);
+              var easystar = Game.instance.easystar;
+              easystar.findPath(enemyX, enemyY, pandaX, pandaY, this.tracePath);
+              Game.instance.easystar.calculate();            
+          }
         },        
 
         // B_BUTTON_DOWN handler (not actually 'B', but that's its name)
+        // Currently bound to 'SHIFT' key, for pausing
         bHandler: function(evt) {
-           this.bgm.stop();
-           Game.instance.replaceScene(new SceneGameOver());
+           var game = Game.instance;
+
+           if (this.paused == true) {
+              this.bgm.play();
+              game.resume();
+              this.removeChild(this.pauseLabel);        
+           }
+           else {
+              this.bgm.stop();
+              game.pause();
+              this.addChild(this.pauseLabel);
+           }
+           this.paused = !this.paused;
         },
 
         // Perform checks and related updates
@@ -197,6 +360,15 @@ window.onload = function() {
               bgMusic.play();
            }
 
+           //-- Display remaining bamboo
+           if (this.bambooNeeded == 0) {
+              this.bambooLabel.text = 'Get to the treasure!';
+           }
+           else {
+              this.bambooLabel.text = 'Bamboo Needed: ' + this.bambooNeeded;
+           }
+           
+
            //-- Check win/lose conditions
            // Win = Panda reaches the chest at cell(3, 24)
            // NOTE: In future revisions, consider randomly placing chest
@@ -204,9 +376,10 @@ window.onload = function() {
            var chestX = 3;
            var chestY = 24;
            if (Math.floor(this.panda.x/20) == chestX &&
-               Math.floor(this.panda.y/20) == chestY) {
+               Math.floor(this.panda.y/20) == chestY &&
+               this.bambooNeeded == 0) {
               this.bgm.stop();
-              Game.instance.replaceScene(new SceneWin());
+              Game.instance.replaceScene(new SceneWin(this.totalBamboo));
            }
            // Lose = Panda's hp reaches 0
            if (this.panda.hp <= 0) {
@@ -220,12 +393,12 @@ window.onload = function() {
            //    var enemy;
            //    this.generateEnemyTimer -= 0.5;
            //    enemy = new Enemy(Math.floor(Math.random()*3));
-           //    this.obstructGroup.addChild(enemy);
+           //    this.enemyGroup.addChild(enemy);
            // }
 
            //-- Update collision with enemy
-           for (var i = this.obstructGroup.childNodes.length - 1; i >= 0; i--) {
-              var enemy, og = this.obstructGroup;
+           for (var i = this.enemyGroup.childNodes.length - 1; i >= 0; i--) {
+              var enemy, og = this.enemyGroup;
               enemy = og.childNodes[i];
               if (this.panda.vulnerable && enemy.within(this.panda, 16)) {
                  Game.instance.assets['res/Realistic_Punch.wav'].play();
@@ -258,8 +431,8 @@ window.onload = function() {
                // alert("Path was found. The first Point is " + path[0].x + " " + path[0].y);
                for (var i = 0; i < path.length; i++) {
                   var newEnemy = new Enemy(path[i].x * 20, path[i].y * 20); // *20 for pixel -> cell
-                  var obstructGroup = Game.instance.currentScene.obstructGroup;
-                  obstructGroup.addChild(newEnemy);
+                  var enemyGroup = Game.instance.currentScene.enemyGroup;
+                  enemyGroup.addChild(newEnemy);
                }
             }
         },
@@ -298,7 +471,12 @@ window.onload = function() {
 
           this.animationDuration += evt.elapsed * 0.001;    // ms to sec   
           if (this.animationDuration >= 0.25) {
-             this.frame = (this.frame + 1) % 2;     // Switch b/t frame 0 and 1
+             if (game.currentScene.bambooNeeded == 0) {
+                this.frame == 6 ? this.frame = 7 : this.frame = 6;
+             }
+             else {
+                this.frame = (this.frame + 1) % 2;     // Switch b/t frame 0 and 1
+             }
              this.animationDuration -= 0.25;
           }
 
@@ -348,7 +526,7 @@ window.onload = function() {
 
            this.hp = 8;
            this.vulnerable = true;
-           
+
            this.setPosition(x, y);
     
            this.addEventListener(Event.ENTER_FRAME, this.update);
@@ -371,7 +549,7 @@ window.onload = function() {
 
            this.tl.setTimeBased();
 
-           this.tl.delay(250).then(function() {
+           this.tl.delay(enemySpeedMilliseconds).then(function() {
               easystar.findPath(Math.floor(this.x/20), Math.floor(this.y/20), 
                     Math.floor(scene.panda.x/20), Math.floor(scene.panda.y/20),
                     this.pathHandler);
@@ -389,6 +567,11 @@ window.onload = function() {
             if (path != null) {
                var scene = Game.instance.currentScene;
                var enemy = scene.enemy;
+
+               // Don't do anything if player was just injured
+               if (!scene.panda.vulnerable) {
+                  return;
+               }
 
                // console.log("Path length is " + path.length);
                if (path.length <= 2) {
@@ -413,6 +596,39 @@ window.onload = function() {
    }); // END Enemy
 
    /**
+   * Bamboo item for collection
+   */
+   var Bamboo = Class.create(Sprite, {
+
+       initialize: function(x, y) {
+           Sprite.apply(this,[32, 32]);
+           this.image  = Game.instance.assets['res/bamboo.png'];    
+
+           this.setPosition(x, y);
+
+    
+           // this.addEventListener(Event.ENTER_FRAME, this.update);
+
+           console.log("Bamboo created at (" + x + ", " + y + ")");
+       },
+
+       setPosition: function (newX, newY) {
+           this.x = newX;
+           this.y = newY;
+       },
+
+       // // Remove bamboo on touch 
+       // update: function(evt) { 
+       //     var scene = Game.instance.currentScene;
+       //     var panda = scene.panda;
+       //     if (this.within(panda, 20)) {
+       //         this.parentNode.removeChild(this);
+       //         scene.bambooNeeded--;
+       //     }
+       // }
+   }); // END Bamboo
+
+   /**
    * Scene for losing the game
    */
    var SceneGameOver = Class.create(Scene, {
@@ -423,46 +639,50 @@ window.onload = function() {
            this.backgroundColor = 'black';
 
            gameOverLabel = new Label("GAME OVER<br><br>Click to Restart");
-           gameOverLabel.x = Game.instance.width/2;
-           gameOverLabel.y = Game.instance.height/2;
+           gameOverLabel.x = 250;
+           gameOverLabel.y = 250;
            gameOverLabel.color = 'white';
-           gameOverLabel.font = '32px strong';
+           gameOverLabel.font = '32px Tahoma, strong';
            gameOverLabel.textAlign = 'center';
 
            this.addChild(gameOverLabel);
+           Game.instance.assets['res/failure.mp3'].play();
 
            this.addEventListener(Event.TOUCH_START, this.restart);           
        },
 
        restart: function() {
-           Game.instance.replaceScene(new SceneGame());
+           Game.instance.replaceScene(new SceneGame(1));
        }
    });
 
-      /**
+  /**
    * Scene for winning the game
    */
    var SceneWin = Class.create(Scene, {
-       initialize: function() {
+       initialize: function(oldTotalBamboo) {
            var winLabel, scoreLabel;
            Scene.apply(this);
 
            this.backgroundColor = 'white';
+           this.oldTotalBamboo = oldTotalBamboo;
 
-           winLabel = new Label("YOU WIN :]<br><br>Click to Restart");
-           winLabel.x = Game.instance.width/2;
-           winLabel.y = Game.instance.height/2;
+           winLabel = new Label("YOU WIN!<br><br>Click for Next Level");
+           winLabel.x = 250;
+           winLabel.y = 250;
            winLabel.color = 'black';
-           winLabel.font = '32px strong';
+           winLabel.font = '32px Tahoma, strong';
            winLabel.textAlign = 'center';
 
            this.addChild(winLabel);
+           Game.instance.assets['res/success.mp3'].play();
 
            this.addEventListener(Event.TOUCH_START, this.restart);           
        },
 
        restart: function() {
-           Game.instance.replaceScene(new SceneGame());
+           var newTotalBamboo = this.oldTotalBamboo + 1;
+           Game.instance.replaceScene(new SceneGame(newTotalBamboo));
        }
    });      
 
