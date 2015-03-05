@@ -3,7 +3,8 @@
 
 This was created for an open-ended CPE 378 (Interactive Entertainment Engineering) lab assignment at Cal Poly San Luis Obispo.
 
-NOTE: Currently this requires an external mouse to work properly, otherwise clicking with a laptop's built-in left mouse button will not remove bamboo. For some reason the "touch" event is not being caught by the listener when using a laptop's built-in mouse.
+NOTE: Currently this requires an external mouse to work as intended, otherwise clicking with a laptop's built-in left mouse button will not remove bamboo. For some reason the "touch" event is not being caught by the listener when using a laptop's built-in mouse.
+As a workaround, I've currently bound the "CTRL" key to serve the same function of eating bamboo.
 
 # Game Context
 You are Deft Panda, the most passionate bamboo-eater in the land.

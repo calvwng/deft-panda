@@ -316,7 +316,8 @@ window.onload = function() {
 
         // A_BUTTON_DOWN handler (not actually 'A', but that's its name)
         // This is an example of using Game to get the current scene
-        // Currently bound to 'CTRL' key, to show enemy path
+        // Currently bound to 'CTRL' key, for eating bamboo
+        // or to show enemy path in debug mode
         aHandler: function(evt) {
           // If debugging, pressing this button will display the best path
           // from the enemy to the player
@@ -332,6 +333,18 @@ window.onload = function() {
               easystar.findPath(enemyX, enemyY, pandaX, pandaY, this.tracePath);
               Game.instance.easystar.calculate();            
           }
+
+           /* Logic for clicking to eat bamboo when close enough */
+           var minDistToBamboo = 25;
+           for (var i = this.bambooGroup.childNodes.length - 1; i >= 0; i--) {
+              var bamboo, bGroup = this.bambooGroup;
+              bamboo = bGroup.childNodes[i];
+              if (bamboo.within(this.panda, minDistToBamboo)) {
+                 bGroup.removeChild(bamboo);
+                 this.bambooNeeded--;
+                 Game.instance.assets['res/crunch.mp3'].play();
+              }
+           }          
         },        
 
         // B_BUTTON_DOWN handler (not actually 'B', but that's its name)
