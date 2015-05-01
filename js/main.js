@@ -8,7 +8,7 @@ enchant();
 window.onload = function() {
    //-- Globals
    var DEBUG_MODE = false;   
-   var pandaSpeed = 2.5;
+   var pandaSpeed = 4;
    var enemySpeedMilliseconds = 225;
    var enemyCanMoveDiagonally = true;
    var gameWidth = 800;
