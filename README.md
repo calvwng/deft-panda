@@ -1,4 +1,7 @@
 # "Deft Panda" by Calvin Wong
+
+http://calvwng.github.io/deft-panda/
+
 "Deft Panda" is a JavaScript game exploring the capabilities of the Enchant.js framework (particularly its object oriented JS, collision mapping, and event handling) and A Star pathfinding for A.I. using the Easystar.js library.
 
 This was created for an open-ended CPE 378 (Interactive Entertainment Engineering) lab assignment at Cal Poly San Luis Obispo.
