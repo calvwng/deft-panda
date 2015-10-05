@@ -1,6 +1,8 @@
 # "Deft Panda" by Calvin Wong
 "Deft Panda" is a JavaScript game exploring the capabilities of the Enchant.js framework (particularly its object oriented JS, collision mapping, and event handling) and A Star pathfinding for A.I. using the Easystar.js library.
 
+![](https://raw.githubusercontent.com/calvwng/deft-panda/master/deft%20panda%20screenshots.png)
+
 This was created for an open-ended CPE 378 (Interactive Entertainment Engineering) lab assignment at Cal Poly San Luis Obispo.
 
 NOTE: Currently this requires an external mouse to work as intended, otherwise clicking with a laptop's built-in left mouse button will not remove bamboo. For some reason the "touch" event is not being caught by the listener when using a laptop's built-in mouse.
